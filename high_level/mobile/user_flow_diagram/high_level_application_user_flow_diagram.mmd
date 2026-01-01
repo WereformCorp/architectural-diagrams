@@ -1,0 +1,60 @@
+flowchart TD
+    A[App Start] --> B[Loading Screen]
+
+    B --> C{Is Logged In?}
+    C -- Yes --> D[Feed]
+    C -- No --> E[Sign Up Screen]
+    E --> F{Signed Up?}
+    F -- Yes --> D
+    F -- No --> E
+
+    %% Global Header
+    D --> H[Global Header]
+    H --> H1[Begenone Logo]
+    H --> H2[Search Icon]
+    H --> H3[Notification Icon]
+
+    %% Search Flow
+    H2 --> S[Search Page]
+    S --> S1[Search All Content Types]
+    S1 --> S2[Show 10 Results]
+    S2 --> S3[Load 10 More Per Viewport End]
+
+    %% Feed Navigation
+    D --> N[Navigation Bar]
+    N --> N1[Home]
+    N --> N2[Wires]
+    N --> N3[Upload]
+    N --> N4[Subscriptions]
+    N --> N5[User]
+
+    %% Home
+    N1 --> Hm1[Videos]
+    N1 --> Hm2[Wires]
+    N1 --> Hm3[Playlists]
+
+    %% Wires
+    N2 --> W1[Short-form Text Posts]
+
+    %% Upload
+    N3 --> U{Upload Type}
+    U -- Default --> U1[Video Upload]
+    U -- Wire --> U2[Wire Upload]
+
+    %% Subscriptions
+    N4 --> Sbs1[Subscribed Channels List]
+
+    %% User Section
+    N5 --> Ux1[History Page]
+    N5 --> Ux2[Likes Page]
+    N5 --> Ux3[Dislikes Page]
+    N5 --> Ux4[Pricing Page]
+    N5 --> Ux5[User Settings]
+    N5 --> Ux6[Channel Settings]
+
+    %% Header applies to all pages
+    H --> N1
+    H --> N2
+    H --> N3
+    H --> N4
+    H --> N5
