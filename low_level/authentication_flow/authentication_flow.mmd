@@ -1,0 +1,58 @@
+flowchart TD
+    ROOT["api/v1/authentication"]
+
+    ROOT --> AUTH["route-auth"]
+    ROOT --> LOGIN["route-login"]
+    ROOT --> LOGOUT["route-logout"]
+    ROOT --> PASSWORD["route-password"]
+    ROOT --> VERIFY["route-verification"]
+
+    %% route-auth
+    subgraph AUTH_ROUTES["route-auth"]
+        AUTH_POST["POST"]
+        AUTH_PATCH["PATCH"]
+
+        AUTH_POST --> AUTH_P1["authenticate"]
+        AUTH_POST --> AUTH_P2["sign-token"]
+        AUTH_POST --> AUTH_P3["restrict-to"]
+        AUTH_POST --> AUTH_P4["reverify-token"]
+
+        AUTH_PATCH --> AUTH_X1["verify-token/:token"]
+    end
+    AUTH --> AUTH_ROUTES
+
+    %% route-login
+    subgraph LOGIN_ROUTES["route-login"]
+        LOGIN_POST["POST"]
+        LOGIN_POST --> LOGIN_P1["login"]
+    end
+    LOGIN --> LOGIN_ROUTES
+
+    %% route-logout
+    subgraph LOGOUT_ROUTES["route-logout"]
+        LOGOUT_POST["POST"]
+        LOGOUT_POST --> LOGOUT_P1["logout"]
+    end
+    LOGOUT --> LOGOUT_ROUTES
+
+    %% route-password
+    subgraph PASSWORD_ROUTES["route-password"]
+        PASS_POST["POST"]
+        PASS_PATCH["PATCH"]
+
+        PASS_POST --> PASS_P1["forgotPassword"]
+
+        PASS_PATCH --> PASS_X1["resetPassword/:token"]
+        PASS_PATCH --> PASS_X2["updateMyPassword (authenticate)"]
+    end
+    PASSWORD --> PASSWORD_ROUTES
+
+    %% route-verification
+    subgraph VERIFY_ROUTES["route-verification"]
+        VERIFY_POST["POST"]
+        VERIFY_PATCH["PATCH"]
+
+        VERIFY_POST --> VERIFY_P1["resend-verification (authenticate)"]
+        VERIFY_PATCH --> VERIFY_X1["verifyEmail"]
+    end
+    VERIFY --> VERIFY_ROUTES
