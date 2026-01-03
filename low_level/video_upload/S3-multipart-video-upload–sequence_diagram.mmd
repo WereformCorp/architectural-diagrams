@@ -1,0 +1,26 @@
+sequenceDiagram
+    participant Client as Client (Web/App)
+    participant AWS_API as AWS Microservice
+    participant S3 as S3 Bucket
+    participant Video_API as Video Service (DB)
+
+    Client->>AWS_API: POST /multipart/init (channelId, filetype)
+    AWS_API->>S3: CreateMultipartUpload
+    S3-->>AWS_API: uploadId, objectKey
+    AWS_API-->>Client: uploadId, objectKey
+
+    loop For each chunk
+        Client->>AWS_API: GET /multipart/part-url (uploadId, partNumber)
+        AWS_API->>S3: Generate presigned PUT URL
+        AWS_API-->>Client: presigned URL
+        Client->>S3: PUT chunk (direct upload)
+        S3-->>Client: ETag
+    end
+
+    Client->>AWS_API: POST /multipart/complete (uploadId, parts[])
+    AWS_API->>S3: CompleteMultipartUpload
+    S3-->>AWS_API: Upload completed
+    AWS_API-->>Client: objectKey
+
+    Client->>Video_API: POST /videos (title, description, videoKey, thumbnailKey)
+    Video_API-->>Client: Video record created
