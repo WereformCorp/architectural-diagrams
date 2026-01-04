@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant User as User (Browser)
+    participant Shell as Shell Microfrontend
+    participant UserSvc as User Microservice
+    participant AuthSvc as Auth Microservice
+    participant DB as Database
+
+    User->>Shell: Enter username + password
+    Shell->>Shell: Validate input fields
+    Shell->>UserSvc: POST /login (credentials)
+
+    UserSvc->>DB: Check user existence
+    DB-->>UserSvc: User found
+
+    UserSvc->>AuthSvc: Authenticate credentials
+    AuthSvc->>DB: Fetch hashed password
+    AuthSvc->>AuthSvc: Hash & compare password
+
+    alt Invalid credentials
+        AuthSvc-->>UserSvc: Authentication failed
+        UserSvc-->>Shell: Error response
+        Shell-->>User: Show error
+    else Valid credentials
+        AuthSvc->>AuthSvc: Generate JWT
+        AuthSvc-->>UserSvc: JWT token
+        UserSvc-->>Shell: Success + JWT
+        Shell->>User: Store JWT in cookies (with expiry)
+    end
