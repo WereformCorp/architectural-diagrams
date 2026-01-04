@@ -1,0 +1,37 @@
+sequenceDiagram
+    participant User as User (Browser)
+    participant Shell as Shell Microfrontend
+    participant UserSvc as User Microservice
+    participant AuthSvc as Auth Microservice
+    participant MailSvc as Email Service
+    participant DB as Database
+
+    User->>Shell: Enter name, email, password
+    Shell->>Shell: Validate input fields
+    Shell->>UserSvc: POST /signup (user data)
+
+    UserSvc->>DB: Check user existence
+    DB-->>UserSvc: User does not exist
+
+    UserSvc->>UserSvc: Validate subscriptions & rules
+    UserSvc->>AuthSvc: Hash password (SHA-256)
+    AuthSvc-->>UserSvc: Hashed password
+
+    UserSvc->>DB: Create user record
+    UserSvc->>AuthSvc: Create signup verification token (10 min)
+
+    AuthSvc-->>UserSvc: Verification token
+    UserSvc->>MailSvc: Send email with 6-digit code
+    MailSvc-->>User: Verification email sent
+
+    User->>Shell: Enter 6-digit code
+    Shell->>AuthSvc: Verify signup token
+
+    alt Token expired or invalid
+        AuthSvc-->>Shell: Verification failed
+        Shell-->>User: Show error
+    else Token valid
+        AuthSvc->>DB: Mark user as verified
+        AuthSvc-->>Shell: Signup successful
+        Shell-->>User: Account activated
+    end
