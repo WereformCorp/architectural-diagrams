@@ -1,0 +1,63 @@
+sequenceDiagram
+    participant Client as Browser / Frontend
+    participant AuthAPI as Auth Microservice
+    participant UserSvc as User Service
+    participant DB as Database
+    participant Mail as Email Service
+
+    %% LOGIN / TOKEN CREATION
+    Client->>AuthAPI: POST /sign-token (after login/signup)
+    AuthAPI->>AuthAPI: signToken(userId)
+    AuthAPI->>AuthAPI: Set JWT cookie (httpOnly, secure, expiry)
+    AuthAPI->>UserSvc: updateUser(passwordConfirm cleared)
+    UserSvc->>DB: Update user record
+    AuthAPI-->>Client: JSON response + JWT cookie
+
+    %% AUTHENTICATED REQUEST
+    Client->>AuthAPI: Request protected route
+    AuthAPI->>AuthAPI: Extract token (Header or Cookie)
+
+    alt Token missing
+        AuthAPI-->>Client: 401 Not Logged In
+    else Token present
+        AuthAPI->>AuthAPI: Verify JWT signature & expiry
+        AuthAPI->>UserSvc: getUser(decoded.id)
+        UserSvc->>DB: Fetch user
+
+        alt User not found
+            AuthAPI-->>Client: 401 User does not exist
+        else User valid
+            AuthAPI->>AuthAPI: Attach user to req / res.locals
+            AuthAPI-->>Client: Access granted
+        end
+    end
+
+    %% SIGNUP VERIFICATION
+    Client->>AuthAPI: PATCH /verifyEmail (email + 6-digit code)
+    AuthAPI->>AuthAPI: Hash verification code
+    AuthAPI->>UserSvc: find user by hashed token + email
+    UserSvc->>DB: Lookup user
+
+    alt Token invalid or expired
+        AuthAPI-->>Client: Verification failed
+    else Token valid
+        AuthAPI->>UserSvc: Activate user + clear tokens
+        UserSvc->>DB: Update user
+        AuthAPI->>AuthAPI: createSendToken()
+        AuthAPI-->>Client: JWT cookie + success
+    end
+
+    %% RESEND VERIFICATION
+    Client->>AuthAPI: POST /resend-verification
+    AuthAPI->>AuthAPI: Check auth & cooldown limits
+
+    alt Cooldown active
+        AuthAPI-->>Client: 429 Too Many Requests
+    else Allowed
+        AuthAPI->>AuthAPI: Generate new signup token
+        AuthAPI->>UserSvc: Update token & expiry
+        UserSvc->>DB: Save changes
+        AuthAPI->>Mail: Send verification email
+        Mail-->>Client: Email delivered
+        AuthAPI-->>Client: Resend success
+    end
