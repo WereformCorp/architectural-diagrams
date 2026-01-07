@@ -1,0 +1,57 @@
+flowchart TD
+    A[Website Visit] --> B[Landing / Home]
+
+    %% Auth Check (soft)
+    B --> C{Is Logged In?}
+    C -- Yes --> D[Personalized Experience]
+    C -- No --> G[Guest Mode]
+
+    %% Guest Mode
+    G --> N[Public Navigation]
+
+    %% Login Suggestion
+    G --> P[Login Suggestion Popup]
+
+    %% Public Navigation
+    N --> N1[Home Feed]
+    N --> N2[Video Page]
+    N --> N3[Channel Page]
+    N --> N4[Playlists Page]
+    N --> N5[Pricing Page]
+    N --> N6[Search Page]
+
+    %% Search Flow
+    N6 --> S1[Search All Public Content]
+    S1 --> S2[Show 10 Results]
+    S2 --> S3[Load 10 More Per Viewport End]
+
+    %% Protected Action Attempt
+    N --> X{Access Protected Route?}
+    X -- No --> N
+    X -- Yes --> R[Redirect to Sign Up / Login]
+
+    %% After Auth
+    R --> L[Login / Sign Up Page]
+    L --> Y{Authenticated?}
+    Y -- Yes --> D
+    Y -- No --> L
+
+    %% Authenticated Experience
+    D --> AN[Full Navigation]
+    AN --> A1[Upload Video / Wire]
+    AN --> A2[Subscribe to Channel]
+    AN --> A3[Like / Dislike Content]
+    AN --> A4[User Settings]
+    AN --> A5[Channel Settings]
+    AN --> A6[History / Likes / Dislikes]
+
+    %% Global Header
+    B --> H[Global Header]
+    H --> H1[Begenone Logo]
+    H --> H2[Search]
+    H --> H3[Notifications]
+    H --> H4[Login / Profile]
+
+    %% Header applies everywhere
+    H --> N
+    H --> D
