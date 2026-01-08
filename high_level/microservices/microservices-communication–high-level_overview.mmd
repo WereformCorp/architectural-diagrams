@@ -1,0 +1,46 @@
+flowchart TD
+    %% Clients
+    Client["Client\n(Web / Mobile)"]
+
+    %% Environments
+    subgraph DEV[Development Environment]
+        Client --> L[localhost / internal URLs]
+
+        L --> AuthDev[Auth Service]
+        L --> UserDev[User Service]
+        L --> ChannelDev[Channel Service]
+        L --> VideoDev[Video Service]
+        L --> WireDev[Wire Service]
+        L --> AwsDev[AWS Service]
+    end
+
+    subgraph PROD[Production Environment]
+        Client --> DNS[begenone.com Subdomains]
+
+        DNS --> ALB[Application Load Balancer]
+
+        ALB --> AuthTG[Auth Target Group]
+        ALB --> UserTG[User Target Group]
+        ALB --> ChannelTG[Channel Target Group]
+        ALB --> VideoTG[Video Target Group]
+        ALB --> WireTG[Wire Target Group]
+        ALB --> AwsTG[AWS Target Group]
+
+        AuthTG --> AuthECS[Auth ECS Service]
+        UserTG --> UserECS[User ECS Service]
+        ChannelTG --> ChannelECS[Channel ECS Service]
+        VideoTG --> VideoECS[Video ECS Service]
+        WireTG --> WireECS[Wire ECS Service]
+        AwsTG --> AwsECS[AWS ECS Service]
+    end
+
+    %% Service-to-Service Communication (Logical)
+    AuthDev <---> UserDev
+    UserDev <---> ChannelDev
+    VideoDev <---> AwsDev
+    WireDev <---> UserDev
+
+    AuthECS <---> UserECS
+    UserECS <---> ChannelECS
+    VideoECS <---> AwsECS
+    WireECS <---> UserECS
