@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    participant Client as Client (Browser/Mobile)
+    participant DNS as DNS/Subdomain
+    participant ALB as ALB
+    participant TG as Target Group
+    participant ECS as ECS Service/Task
+    participant Svc as Microservice Container
+    participant Other as Other Microservice Container
+
+    alt Development (localhost)
+        Client->>Svc: HTTP request (localhost:PORT /api/...)
+        Note over Svc: Service isolated by port
+        Svc->>Other: HTTP call (localhost:OTHER_PORT /api/...)
+        Other-->>Svc: JSON response
+        Svc-->>Client: JSON response
+    else Production (subdomain + ALB + ECS)
+        Client->>DNS: HTTPS request (e.g., auth.begenone.com)
+        DNS->>ALB: Resolve + forward request
+        Note over ALB: Routes by Host header (subdomain)
+        ALB->>TG: Forward to matching Target Group
+        TG->>ECS: Route to healthy ECS task
+        ECS->>Svc: Deliver request to container
+        Note over Svc: Service isolated in its own container
+        Svc->>Other: HTTPS service-to-service call (e.g., user.begenone.com)
+        Other-->>Svc: JSON response
+        Svc-->>Client: JSON response
+    end
