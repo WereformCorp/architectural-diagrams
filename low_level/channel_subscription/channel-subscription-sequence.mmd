@@ -1,0 +1,50 @@
+sequenceDiagram
+    autonumber
+    participant User as User (Browser)
+    participant MF as Channel Microfrontend
+    participant SDK as API Package (Client SDK)
+    participant ChannelSvc as Channel Microservice
+    participant AuthSvc as Auth Microservice
+    participant DB as Database
+
+    %% Preconditions
+    Note over User,MF: User is already authenticated (JWT present)
+
+    %% Subscribe action
+    User->>MF: Click "Subscribe"
+    MF->>SDK: subscribeChannel(channelId)
+    SDK->>ChannelSvc: POST /subscribe (JWT + channelId)
+
+    %% Validation & auth
+    ChannelSvc->>AuthSvc: Authenticate user (JWT)
+    AuthSvc-->>ChannelSvc: User validated
+
+    ChannelSvc->>ChannelSvc: Validate request payload
+    Note over ChannelSvc: Strip unexpected fields<br/>Allow only expected key-values
+
+    %% Persistence
+    ChannelSvc->>DB: Add userId to subscribedChannels[]
+    DB-->>ChannelSvc: Update successful
+
+    %% Response
+    ChannelSvc-->>SDK: Success response
+    SDK-->>MF: Success + message
+    MF-->>User: Update UI → "Subscribed"
+
+    %% Persistence guarantee
+    Note over DB,MF: Subscription persists across refresh and re-login
+
+    %% Unsubscribe (inverse flow)
+    User->>MF: Click "Unsubscribe"
+    MF->>SDK: unsubscribeChannel(channelId)
+    SDK->>ChannelSvc: POST /unsubscribe (JWT + channelId)
+
+    ChannelSvc->>AuthSvc: Authenticate user
+    AuthSvc-->>ChannelSvc: User validated
+
+    ChannelSvc->>DB: Remove userId from subscribedChannels[]
+    DB-->>ChannelSvc: Update successful
+
+    ChannelSvc-->>SDK: Success response
+    SDK-->>MF: Success + message
+    MF-->>User: Update UI → "Subscribe"
