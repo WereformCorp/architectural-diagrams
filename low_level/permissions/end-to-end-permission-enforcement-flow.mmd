@@ -1,0 +1,133 @@
+sequenceDiagram
+    autonumber
+
+    participant U as User (Browser)
+    participant Shell as Shell Microfrontend
+    participant SDK as Custom API Package
+    participant UserSvc as User Microservice
+    participant AuthSvc as Auth Microservice
+    participant SubSvc as Subscription/Billing Service
+    participant Pay as Payment Provider
+    participant DB as Database
+    participant Mail as Email/OTP Service
+
+    %% =========================
+    %% 1) SIGN UP (Account Create)
+    %% =========================
+    U->>Shell: Submit Sign Up form
+    Shell->>Shell: Client-side field validation
+    Shell->>SDK: signup(payload)
+    SDK->>UserSvc: POST /signup (payload)
+
+    UserSvc->>UserSvc: Whitelist expected fields<br/>Strip unexpected keys
+    UserSvc->>DB: Check user existence (email/username)
+    alt User already exists
+        DB-->>UserSvc: Found
+        UserSvc-->>SDK: 409 User already exists
+        SDK-->>Shell: Error response
+        Shell-->>U: Show error message
+    else User does not exist
+        DB-->>UserSvc: Not found
+        UserSvc->>UserSvc: Hash password & prepare user document
+        UserSvc->>DB: Create user (inactive/pending verification)
+        DB-->>UserSvc: User created
+        UserSvc-->>SDK: Signup created (verification required)
+        SDK-->>Shell: Success message
+        Shell-->>U: Prompt for OTP verification (email code)
+    end
+
+    %% ==================================
+    %% 2) PROTECTED / PREMIUM ACCESS ATTEMPT
+    %% ==================================
+    U->>Shell: Navigate to /protected-route (Premium Feature X)
+    Shell->>SDK: accessProtectedFeatureX()
+    SDK->>AuthSvc: GET /guard/feature-x (JWT or session marker)
+
+    %% 2a) AUTHENTICATION CHECK (OTP)
+    AuthSvc->>AuthSvc: Extract JWT (header/cookie)
+    alt No valid auth session
+        AuthSvc-->>SDK: 401 Not authenticated (OTP required)
+        SDK-->>Shell: Redirect to OTP flow
+        Shell-->>U: Show OTP verification UI
+
+        %% OTP PROCESS (high level but technical)
+        U->>Shell: Request OTP
+        Shell->>SDK: requestOTP()
+        SDK->>AuthSvc: POST /otp/request
+        AuthSvc->>Mail: Send OTP to user email
+        Mail-->>U: OTP delivered
+
+        U->>Shell: Submit OTP code
+        Shell->>SDK: verifyOTP(code)
+        SDK->>AuthSvc: POST /otp/verify (code)
+
+        AuthSvc->>AuthSvc: Hash/validate OTP + expiry
+        alt OTP invalid/expired
+            AuthSvc-->>SDK: 401 OTP invalid/expired
+            SDK-->>Shell: Error
+            Shell-->>U: Show OTP error + retry
+        else OTP valid
+            AuthSvc->>AuthSvc: Create/refresh auth session (JWT cookie)
+            AuthSvc-->>SDK: 200 Authenticated
+            SDK-->>Shell: Auth OK
+        end
+    else Authenticated
+        AuthSvc-->>SDK: 200 Authenticated
+        SDK-->>Shell: Auth OK
+    end
+
+    %% ==================================
+    %% 2b) AUTHORIZATION CHECK (RBAC / PBAC)
+    %% ==================================
+    Shell->>SDK: authorizeFeatureX()
+    SDK->>AuthSvc: POST /authorize (feature=FeatureX)
+
+    AuthSvc->>AuthSvc: Apply Guards/Interceptors/Middleware
+    AuthSvc->>DB: Load user roles + permissions / subscription plan
+    DB-->>AuthSvc: roles, permissions, plan
+
+    alt Permission granted (RBAC/PBAC ok)
+        AuthSvc-->>SDK: 200 Allowed
+        SDK-->>Shell: Allowed
+        Shell-->>U: Render Feature X
+    else Permission denied (premium required)
+        AuthSvc-->>SDK: 403 Premium required
+        SDK-->>Shell: Redirect to /pricing or /subscription
+        Shell-->>U: Show Pricing / Subscription page
+
+        %% ==================================
+        %% 3) PURCHASE SUBSCRIPTION
+        %% ==================================
+        U->>Shell: Select plan + Pay
+        Shell->>SDK: createSubscription(plan)
+        SDK->>SubSvc: POST /subscription/create (plan + userId)
+
+        SubSvc->>Pay: Charge payment method
+        alt Payment failed
+            Pay-->>SubSvc: Failure
+            SubSvc-->>SDK: 402 Payment required / failed
+            SDK-->>Shell: Error
+            Shell-->>U: Show payment failure message
+        else Payment success
+            Pay-->>SubSvc: Success
+            SubSvc->>DB: Update user access state
+            Note over SubSvc,DB: Either toggle booleans<br/>or set enum plan key (e.g., plan=PREMIUM)
+            DB-->>SubSvc: Updated
+
+            SubSvc-->>SDK: Subscription active
+            SDK-->>Shell: Success message + redirect target
+            Shell-->>U: Redirect to /home or /account
+
+            %% ==================================
+            %% 4) POST-REDIRECT RECHECK (GUARDS)
+            %% ==================================
+            U->>Shell: Load redirected page
+            Shell->>SDK: recheckAuthAndPermissions()
+            SDK->>AuthSvc: GET /guard + /authorize (FeatureX)
+            AuthSvc->>DB: Fetch updated roles/permissions/plan
+            DB-->>AuthSvc: Premium access present
+            AuthSvc-->>SDK: 200 Allowed
+            SDK-->>Shell: Allowed
+            Shell-->>U: Feature X unlocked (persisted)
+        end
+    end
