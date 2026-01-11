@@ -1,0 +1,43 @@
+sequenceDiagram
+    autonumber
+    participant User as User
+    participant UI as Frontend (Web / App)
+    participant Perm as Permission Check
+    participant Sub as Subscription Service
+    participant DB as Database
+
+    %% Account creation
+    User->>UI: Sign up (create account)
+    UI->>DB: Create user record
+    DB-->>UI: Account created
+
+    %% Access attempt
+    User->>UI: Access Feature X
+    UI->>Perm: Check permissions for Feature X
+    Perm->>DB: Read user permissions
+    DB-->>Perm: Current access state
+
+    alt User has required permission
+        Perm-->>UI: Access granted
+        UI-->>User: Feature X available
+    else User lacks permission
+        Perm-->>UI: Access denied
+        UI-->>User: Premium required
+
+        %% Subscription purchase
+        User->>UI: Purchase premium subscription
+        UI->>Sub: Create subscription
+        Sub->>DB: Update user permissions (premium = true)
+        DB-->>Sub: Update successful
+
+        Sub-->>UI: Subscription confirmed
+        UI-->>User: Access unlocked
+
+        %% Retry access
+        User->>UI: Access Feature X
+        UI->>Perm: Re-check permissions
+        Perm->>DB: Read updated permissions
+        DB-->>Perm: Premium access true
+        Perm-->>UI: Access granted
+        UI-->>User: Feature X available
+    end
