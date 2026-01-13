@@ -1,0 +1,62 @@
+flowchart TD
+    %% =========================
+    %% Core Identity Layer
+    %% =========================
+    Auth["Auth Service\n(Identity & Trust)"]
+
+    %% =========================
+    %% User & Access Layer
+    %% =========================
+    User["User Service\n(User Existence & Profile)"]
+    Sub["Subscription Service\n(Plans & Entitlements)"]
+
+    %% =========================
+    %% Content Ownership Layer
+    %% =========================
+    Channel["Channel Service\n(Ownership Boundary)"]
+    Video["Video Service\n(Video Content)"]
+    Wire["Wire Service\n(Text Content)"]
+
+    %% =========================
+    %% External Integration Layer
+    %% =========================
+    AWS["AWS Service\n(Uploads & Storage)"]
+
+    %% =========================
+    %% Dependencies (Clear & Intentional)
+    %% =========================
+
+    %% Identity dependencies
+    User --> Auth
+    Sub --> Auth
+    Channel --> Auth
+    Video --> Auth
+    Wire --> Auth
+
+    %% User & access dependencies
+    User --> Sub
+    Channel --> User
+    Video --> User
+    Wire --> User
+
+    %% Content hierarchy dependencies
+    Video --> Channel
+    Wire --> Channel
+
+    %% AWS integration dependencies
+    AWS --> User
+    AWS --> Channel
+    AWS --> Video
+
+    %% =========================
+    %% Visual grouping notes
+    %% =========================
+    classDef core fill:#1f2937,color:#ffffff,stroke:#111827
+    classDef access fill:#374151,color:#ffffff,stroke:#1f2937
+    classDef content fill:#4b5563,color:#ffffff,stroke:#374151
+    classDef external fill:#6b7280,color:#ffffff,stroke:#4b5563
+
+    class Auth core
+    class User,Sub access
+    class Channel,Video,Wire content
+    class AWS external
