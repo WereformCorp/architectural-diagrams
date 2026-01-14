@@ -1,0 +1,74 @@
+flowchart LR
+    %% =========================
+    %% CORE IDENTITY & TRUST
+    %% =========================
+    Auth[Auth Service<br/>JWT · OTP · Guards · RBAC]
+    
+    %% =========================
+    %% USER & ACCESS CONTROL
+    %% =========================
+    User[User Service<br/>Profiles · Ownership · Existence]
+    Sub[Subscription Service<br/>Plans · Entitlements]
+
+    %% =========================
+    %% CONTENT OWNERSHIP
+    %% =========================
+    Channel[Channel Service<br/>Channel Ownership]
+    Video[Video Service<br/>Video Metadata]
+    Wire[Wire Service<br/>Wire Metadata]
+
+    %% =========================
+    %% INFRA / INTEGRATION
+    %% =========================
+    AWS[AWS Service<br/>S3 Multipart · Presigned URLs]
+
+    %% =========================
+    %% AUTHENTICATION CALLS
+    %% =========================
+    User -->|JWT verify / OTP| Auth
+    Sub -->|JWT verify| Auth
+    Channel -->|JWT verify| Auth
+    Video -->|JWT verify| Auth
+    Wire -->|JWT verify| Auth
+
+    %% =========================
+    %% USER EXISTENCE & OWNERSHIP
+    %% =========================
+    Channel -->|check user exists| User
+    Video -->|check user exists| User
+    Wire -->|check user exists| User
+    AWS -->|validate uploader user| User
+
+    %% =========================
+    %% SUBSCRIPTION / PERMISSION CHECKS
+    %% =========================
+    User -->|read entitlements| Sub
+    Channel -->|permission gate| Sub
+    Video -->|permission gate| Sub
+    Wire -->|permission gate| Sub
+
+    %% =========================
+    %% CONTENT HIERARCHY
+    %% =========================
+    Video -->|validate channel ownership| Channel
+    Wire -->|validate channel ownership| Channel
+    AWS -->|validate channel context| Channel
+
+    %% =========================
+    %% VIDEO-SPECIFIC DEPENDENCIES
+    %% =========================
+    AWS -->|validate video existence| Video
+
+    %% =========================
+    %% WRITE OPERATIONS (STATE MUTATION)
+    %% =========================
+    Sub -->|update permissions| User
+    Channel -->|update subscribers| User
+    Video -->|create/update metadata| Channel
+    Wire -->|create/update metadata| Channel
+
+    %% =========================
+    %% READ OPERATIONS (SAFE PATHS)
+    %% =========================
+    Video -.->|public GET| Channel
+    Wire -.->|public GET| Channel
