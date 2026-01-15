@@ -1,0 +1,52 @@
+sequenceDiagram
+    autonumber
+
+    participant User as User (Browser)
+    participant Shell as Shell Microfrontend
+    participant SDK as Custom API Package
+    participant Auth as Auth Service (localhost)
+    participant UserSvc as User Service (localhost)
+    participant Channel as Channel Service (localhost)
+    participant Video as Video Service (localhost)
+    participant AWS as AWS Service (localhost)
+    participant DB as Database
+
+    %% App interaction
+    User->>Shell: Interact with UI (login / subscribe / upload / view)
+    Shell->>Shell: Client-side validation
+    Shell->>SDK: Call API method
+
+    %% Authentication (dev)
+    SDK->>Auth: HTTP request (localhost:AUTH_PORT)
+    Auth->>Auth: Verify JWT / OTP / guards
+    Auth->>DB: Read auth-related user data
+    DB-->>Auth: User auth state
+    Auth-->>SDK: Auth result (success / error)
+
+    %% User existence & permissions
+    SDK->>UserSvc: HTTP request (localhost:USER_PORT)
+    UserSvc->>DB: Check user existence / profile
+    DB-->>UserSvc: User data
+    UserSvc-->>SDK: User validated
+
+    %% Channel / content ownership
+    SDK->>Channel: HTTP request (localhost:CHANNEL_PORT)
+    Channel->>UserSvc: Verify user ownership / relation
+    UserSvc-->>Channel: Ownership confirmed
+    Channel->>DB: Read/write channel data
+    DB-->>Channel: Channel updated
+    Channel-->>SDK: Channel response
+
+    %% Video / Wire operations (example: upload)
+    SDK->>Video: HTTP request (localhost:VIDEO_PORT)
+    Video->>Channel: Validate channel existence
+    Channel-->>Video: Channel OK
+    Video->>AWS: Request presigned upload (localhost:AWS_PORT)
+    AWS->>DB: Validate user/channel/video context
+    DB-->>AWS: Context valid
+    AWS-->>Video: Presigned URLs
+    Video-->>SDK: Upload metadata / success
+
+    %% Response to UI
+    SDK-->>Shell: Final API response
+    Shell-->>User: Update UI (state, messages, permissions)
