@@ -1,0 +1,62 @@
+sequenceDiagram
+    autonumber
+
+    participant User as User (Browser)
+    participant DNS as DNS / Subdomain
+    participant ALB as Application Load Balancer
+    participant Auth as Auth Service (ECS)
+    participant UserSvc as User Service (ECS)
+    participant Channel as Channel Service (ECS)
+    participant Video as Video Service (ECS)
+    participant AWS as AWS Service (ECS)
+    participant S3 as S3 Bucket
+    participant DB as Database
+
+    %% Entry
+    User->>DNS: HTTPS request (e.g. auth.begenone.com)
+    DNS->>ALB: Resolve & forward request
+    ALB->>Auth: Route to Auth target group
+
+    %% Authentication
+    Auth->>Auth: Verify JWT / OTP / guards
+    Auth->>DB: Read auth-related user state
+    DB-->>Auth: Auth result
+    Auth-->>ALB: Auth response
+    ALB-->>User: Set-cookie / JSON response
+
+    %% Protected action
+    User->>DNS: HTTPS request (e.g. channel.begenone.com)
+    DNS->>ALB: Forward request
+    ALB->>Channel: Route to Channel target group
+
+    %% Ownership & permission checks
+    Channel->>Auth: Validate identity & permissions
+    Auth-->>Channel: Identity OK
+    Channel->>UserSvc: Verify user existence / ownership
+    UserSvc->>DB: Read user data
+    DB-->>UserSvc: User data
+    UserSvc-->>Channel: Ownership confirmed
+
+    %% Example: video upload
+    Channel->>Video: Request video operation
+    Video->>Auth: Permission gate (premium / upload rights)
+    Auth-->>Video: Allowed
+
+    Video->>AWS: Request multipart upload init
+    AWS->>DB: Validate user / channel / video context
+    DB-->>AWS: Context valid
+    AWS-->>Video: uploadId + presigned URLs
+
+    User->>S3: Upload chunks directly (presigned URLs)
+    S3-->>User: ETags per chunk
+
+    User->>AWS: Complete multipart upload
+    AWS->>S3: Assemble object
+    S3-->>AWS: Upload completed
+
+    AWS-->>Video: Final object key
+    Video->>DB: Persist video metadata
+    DB-->>Video: Saved
+
+    Video-->>ALB: Success response
+    ALB-->>User: Final API response
